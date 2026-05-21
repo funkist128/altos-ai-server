@@ -34,10 +34,8 @@ services:
     expose:
       - "8000"
     environment:
-      - LARGE_MODEL_URL=http://ollama:11434/v1
-      - SMALL_MODEL_URL=http://ollama:11434/v1
-      - LARGE_MODEL_NAME=${LARGE_MODEL_NAME:-llama3.2:3b}
-      - SMALL_MODEL_NAME=${SMALL_MODEL_NAME:-llama3.2:1b}
+      - BACKEND_URL=http://ollama:11434/v1
+      - MODEL_NAME=${MODEL_NAME:-llama3.2:3b}
     depends_on:
       ollama:
         condition: service_healthy
@@ -56,7 +54,7 @@ services:
       - OPENAI_API_KEYS=dev
       - ENABLE_OLLAMA_API=false
       - BYPASS_MODEL_ACCESS_CONTROL=true
-      - DEFAULT_MODELS=auto
+      - DEFAULT_MODELS=${MODEL_NAME:-llama3.2:3b}
     volumes:
       - dev-open-webui-data:/app/backend/data
     depends_on:

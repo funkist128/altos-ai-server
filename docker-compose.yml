@@ -15,8 +15,6 @@ services:
       - "8000"
     deploy:
       resources:
-        limits:
-          memory: "48G"
         reservations:
           devices:
             - driver: nvidia
@@ -34,7 +32,7 @@ services:
       - --max-num-batched-tokens
       - "${LARGE_MAX_BATCHED:-8192}"
       - --enable-chunked-prefill
-      - --enforce-eager 
+      - --enforce-eager
       - --host
       - "0.0.0.0"
       - --port
@@ -46,53 +44,6 @@ services:
       retries: 60
       start_period: 600s
 
-  vllm-small:
-    image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
-    container_name: vllm-small
-    restart: unless-stopped
-    ipc: host
-    shm_size: "8gb"
-    environment:
-      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
-      - HF_HOME=/root/.cache/huggingface
-      - VLLM_WORKER_MULTIPROC_METHOD=spawn
-    volumes:
-      - hf-cache:/root/.cache/huggingface
-    expose:
-      - "8000"
-    deploy:
-      resources:
-        limits: 
-          memory: "20G"
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    command:
-      - --model
-      - ${SMALL_MODEL_ID}
-      - --served-model-name
-      - ${SMALL_MODEL_NAME}
-      - --gpu-memory-utilization
-      - "${SMALL_GPU_MEM_UTIL}"
-      - --max-model-len
-      - "${SMALL_MAX_LEN}"
-      - --max-num-batched-tokens
-      - "${SMALL_MAX_BATCHED:-8192}"
-      - --enable-chunked-prefill
-      - --enforce-eager 
-      - --host
-      - "0.0.0.0"
-      - --port
-      - "8000"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 60
-      start_period: 300s
-
   router-api:
     build: ./router-api
     container_name: router-api
@@ -100,14 +51,10 @@ services:
     expose:
       - "8000"
     environment:
-      - LARGE_MODEL_URL=http://vllm-large:8000/v1
-      - SMALL_MODEL_URL=http://vllm-small:8000/v1
-      - LARGE_MODEL_NAME=${LARGE_MODEL_NAME}
-      - SMALL_MODEL_NAME=${SMALL_MODEL_NAME}
+      - BACKEND_URL=http://vllm-large:8000/v1
+      - MODEL_NAME=${LARGE_MODEL_NAME}
     depends_on:
       vllm-large:
-        condition: service_healthy
-      vllm-small:
         condition: service_healthy
 
   open-webui:
@@ -125,7 +72,7 @@ services:
       - OPENAI_API_KEYS=router-dummy-key
       - ENABLE_OLLAMA_API=false
       - BYPASS_MODEL_ACCESS_CONTROL=true
-      - DEFAULT_MODELS=auto
+      - DEFAULT_MODELS=${LARGE_MODEL_NAME}
     volumes:
       - open-webui-data:/app/backend/data
     depends_on:
