@@ -78,8 +78,6 @@ services:
       - "${SMALL_MAX_BATCHED:-8192}"
       - --enable-chunked-prefill
       - --enforce-eager 
-      - --limit-mm-per-prompt
-      - "image=0"
       - --host
       - "0.0.0.0"
       - --port
