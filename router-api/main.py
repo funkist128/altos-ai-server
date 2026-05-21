@@ -121,15 +121,42 @@ async def chat(req: ChatRequest):
 
 # --------------------- OpenAI-compatible endpoints (for Open WebUI) ---------------------
 
+def _model_entry(model_id: str, owner: str, created: int) -> dict:
+    return {
+        "id": model_id,
+        "object": "model",
+        "created": created,
+        "owned_by": owner,
+        "permission": [
+            {
+                "id": f"perm-{model_id}",
+                "object": "model_permission",
+                "created": created,
+                "allow_create_engine": False,
+                "allow_sampling": True,
+                "allow_logprobs": False,
+                "allow_search_indices": False,
+                "allow_view": True,
+                "allow_fine_tuning": False,
+                "organization": "*",
+                "group": None,
+                "is_blocking": False,
+            }
+        ],
+        "root": model_id,
+        "parent": None,
+    }
+
+
 @app.get("/v1/models")
 async def list_models():
     now = int(time.time())
     return {
         "object": "list",
         "data": [
-            {"id": "auto", "object": "model", "created": now, "owned_by": "router"},
-            {"id": LARGE_NAME, "object": "model", "created": now, "owned_by": "vllm"},
-            {"id": SMALL_NAME, "object": "model", "created": now, "owned_by": "vllm"},
+            _model_entry("auto", "router", now),
+            _model_entry(LARGE_NAME, "vllm", now),
+            _model_entry(SMALL_NAME, "vllm", now),
         ],
     }
 

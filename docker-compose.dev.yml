@@ -49,9 +49,14 @@ services:
     expose:
       - "8080"
     environment:
-      - OPENAI_API_BASE_URL=http://router-api:8000/v1
-      - OPENAI_API_KEY=dev
       - WEBUI_AUTH=False
+      - DEFAULT_USER_ROLE=admin
+      - ENABLE_OPENAI_API=true
+      - OPENAI_API_BASE_URLS=http://router-api:8000/v1
+      - OPENAI_API_KEYS=dev
+      - ENABLE_OLLAMA_API=false
+      - BYPASS_MODEL_ACCESS_CONTROL=true
+      - DEFAULT_MODELS=auto
     volumes:
       - dev-open-webui-data:/app/backend/data
     depends_on:
