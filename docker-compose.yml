@@ -64,7 +64,8 @@ services:
       - "8000"
     deploy:
       resources:
-        limits: "20G"
+        limits: 
+          memory: "20G"
         reservations:
           devices:
             - driver: nvidia
