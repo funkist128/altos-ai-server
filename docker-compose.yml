@@ -1,0 +1,132 @@
+services:
+  vllm-large:
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
+    container_name: vllm-large
+    runtime: nvidia
+    restart: unless-stopped
+    ipc: host
+    shm_size: "16gb"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+      - HF_HOME=/root/.cache/huggingface
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - --model
+      - ${LARGE_MODEL_ID}
+      - --served-model-name
+      - ${LARGE_MODEL_NAME}
+      - --gpu-memory-utilization
+      - "${LARGE_GPU_MEM_UTIL}"
+      - --max-model-len
+      - "${LARGE_MAX_LEN}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 60
+      start_period: 600s
+
+  vllm-small:
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
+    container_name: vllm-small
+    runtime: nvidia
+    restart: unless-stopped
+    ipc: host
+    shm_size: "8gb"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+      - HF_HOME=/root/.cache/huggingface
+      - VLLM_WORKER_MULTIPROC_METHOD=spawn
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    expose:
+      - "8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - --model
+      - ${SMALL_MODEL_ID}
+      - --served-model-name
+      - ${SMALL_MODEL_NAME}
+      - --gpu-memory-utilization
+      - "${SMALL_GPU_MEM_UTIL}"
+      - --max-model-len
+      - "${SMALL_MAX_LEN}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 60
+      start_period: 300s
+
+  router-api:
+    build: ./router-api
+    container_name: router-api
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - LARGE_MODEL_URL=http://vllm-large:8000/v1
+      - SMALL_MODEL_URL=http://vllm-small:8000/v1
+      - LARGE_MODEL_NAME=${LARGE_MODEL_NAME}
+      - SMALL_MODEL_NAME=${SMALL_MODEL_NAME}
+    depends_on:
+      vllm-large:
+        condition: service_healthy
+      vllm-small:
+        condition: service_healthy
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      - OPENAI_API_BASE_URL=http://router-api:8000/v1
+      - OPENAI_API_KEY=router-dummy-key
+      - WEBUI_AUTH=False
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      - router-api
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - router-api
+      - open-webui
+
+volumes:
+  hf-cache:
+  open-webui-data:

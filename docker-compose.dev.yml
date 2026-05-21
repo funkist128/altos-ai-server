@@ -1,0 +1,74 @@
+# Dev stack for local Mac testing.
+# 用 dockerized Ollama 取代兩個 vLLM；router-api / open-webui / nginx 與正式版同源。
+#
+# 啟動: docker compose -f docker-compose.dev.yml up -d --build
+# 拉模型: docker exec dev-ollama ollama pull llama3.2:1b
+#         docker exec dev-ollama ollama pull llama3.2:3b
+# 預設對外: http://localhost:${NGINX_PORT:-8080}
+#
+# 想用 native Ollama (Mac 上 Metal 加速)：
+#   1. 移除底下 ollama 這個 service
+#   2. 在 host 起 `ollama serve`
+#   3. 把 router-api 的 *_MODEL_URL 改成 http://host.docker.internal:11434/v1
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dev-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - dev-ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  router-api:
+    build: ./router-api
+    container_name: dev-router-api
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      - LARGE_MODEL_URL=http://ollama:11434/v1
+      - SMALL_MODEL_URL=http://ollama:11434/v1
+      - LARGE_MODEL_NAME=${LARGE_MODEL_NAME:-llama3.2:3b}
+      - SMALL_MODEL_NAME=${SMALL_MODEL_NAME:-llama3.2:1b}
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: dev-open-webui
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      - OPENAI_API_BASE_URL=http://router-api:8000/v1
+      - OPENAI_API_KEY=dev
+      - WEBUI_AUTH=False
+    volumes:
+      - dev-open-webui-data:/app/backend/data
+    depends_on:
+      - router-api
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: dev-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8080}:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - router-api
+      - open-webui
+
+volumes:
+  dev-ollama-data:
+  dev-open-webui-data:
