@@ -76,6 +76,8 @@ services:
       - --max-num-batched-tokens
       - "${SMALL_MAX_BATCHED:-8192}"
       - --enable-chunked-prefill
+      - --limit-mm-per-prompt
+      - "image=0"
       - --host
       - "0.0.0.0"
       - --port
