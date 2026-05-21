@@ -15,6 +15,8 @@ services:
       - "8000"
     deploy:
       resources:
+        limits:
+          memory: "48G"
         reservations:
           devices:
             - driver: nvidia
@@ -33,6 +35,8 @@ services:
       - "${LARGE_MAX_BATCHED:-8192}"
       - --enable-chunked-prefill
       - --enforce-eager 
+      - --swap-space
+      - "0"
       - --host
       - "0.0.0.0"
       - --port
@@ -60,6 +64,7 @@ services:
       - "8000"
     deploy:
       resources:
+        limits: "20G"
         reservations:
           devices:
             - driver: nvidia
@@ -78,6 +83,8 @@ services:
       - "${SMALL_MAX_BATCHED:-8192}"
       - --enable-chunked-prefill
       - --enforce-eager 
+      - --swap-space
+      - "0"
       - --host
       - "0.0.0.0"
       - --port
