@@ -2,7 +2,6 @@ services:
   vllm-large:
     image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
     container_name: vllm-large
-    runtime: nvidia
     restart: unless-stopped
     ipc: host
     shm_size: "16gb"
@@ -30,6 +29,9 @@ services:
       - "${LARGE_GPU_MEM_UTIL}"
       - --max-model-len
       - "${LARGE_MAX_LEN}"
+      - --max-num-batched-tokens
+      - "${LARGE_MAX_BATCHED:-8192}"
+      - --enable-chunked-prefill
       - --host
       - "0.0.0.0"
       - --port
@@ -44,7 +46,6 @@ services:
   vllm-small:
     image: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
     container_name: vllm-small
-    runtime: nvidia
     restart: unless-stopped
     ipc: host
     shm_size: "8gb"
@@ -72,6 +73,9 @@ services:
       - "${SMALL_GPU_MEM_UTIL}"
       - --max-model-len
       - "${SMALL_MAX_LEN}"
+      - --max-num-batched-tokens
+      - "${SMALL_MAX_BATCHED:-8192}"
+      - --enable-chunked-prefill
       - --host
       - "0.0.0.0"
       - --port
@@ -102,7 +106,7 @@ services:
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: open-webui
+    container_name: open-webui-vllm
     restart: unless-stopped
     expose:
       - "8081"
